@@ -24,9 +24,9 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
     val pricing = "pricing" -> "NL,CN"
 
     "fetch data from all 3 services" in {
-      given.shipments.succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
-      given.track.succeedWith("""{"109347263": "NEW", "123456891": "COLLECTING"}""")
-      given.pricing.succeedWith("""{"NL": 14.24, "CN": 20.50}""")
+      given(shipment).succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
+      given(track).succeedWith("""{"109347263": "NEW", "123456891": "COLLECTING"}""")
+      given(pricing).succeedWith("""{"NL": 14.24, "CN": 20.50}""")
 
       whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
           response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
@@ -42,9 +42,9 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
 
     "fetch data for shipments and track if pricing is unreachable" in {
 
-      given.shipments.succeeds
-      given.track.succeeds
-      given.pricing.fails
+      given(shipment).succeeds
+      given(track).succeeds
+      given(pricing).fails
 
       whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe true
@@ -54,9 +54,9 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
     }
 
     "fetch data for pricing and track if shipments is unreachable" in {
-      given.shipments.fails
-      given.track.succeeds
-      given.pricing.succeeds
+      given(shipment).fails
+      given(track).succeeds
+      given(pricing).succeeds
 
       whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe false
@@ -66,9 +66,9 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
     }
 
     "fetch data for pricing and shipment if track is unreachable" in {
-      given.shipments.succeeds
-      given.track.fails
-      given.pricing.succeeds
+      given(shipment).succeeds
+      given(track).fails
+      given(pricing).succeeds
 
       whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe true
@@ -78,35 +78,22 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
     }
   }
 
-  private def given = new WiremockGivens()
+  private def given(pathWithParams: (String, String)) = new Wiremock(pathWithParams._1, pathWithParams._2)
 }
 
-class WiremockGivens() {
-  def pricing = new NestedGivens("pricing")
+class Wiremock(path: String, params: String) {
+  def fails: Unit = stubFor(get(urlPathEqualTo(s"/$path")).willReturn(aResponse().withStatus(503)))
 
-  def track = new NestedGivens("track")
-
-  def shipments = new NestedGivens("shipments")
-
-  class NestedGivens(path: String) {
-    def fails: Unit = stubFor(get(urlPathMatching(s"/$path.*")).willReturn(aResponse().withStatus(503)))
-
-    def succeeds: Unit = {
-      path match {
-        case "shipments" => succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
-        case "track" => succeedWith("""{"109347263": "NEW", "123456891": "COLLECTING"}""")
-        case "pricing" => succeedWith("""{"NL": 14.24, "CN": 20.50}""")
-      }
+  def succeeds: Unit = {
+    path match {
+      case "shipments" => succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
+      case "track" => succeedWith("""{"109347263": "NEW", "123456891": "COLLECTING"}""")
+      case "pricing" => succeedWith("""{"NL": 14.24, "CN": 20.50}""")
     }
-
-    def succeedWith(jsonBody: String): Unit =
-      stubFor(get(urlPathMatching(s"/$path.*")).willReturn(
-        aResponse()
-          .withStatus(200)
-          .withHeader("Content-Type", "application/json")
-          .withBody(jsonBody)))
   }
 
+  def succeedWith(jsonBody: String): Unit = {
+    stubFor(get(urlPathEqualTo(s"/$path")).withQueryParam("q", equalTo(params))
+      .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json").withBody(jsonBody)))
+  }
 }
-
-

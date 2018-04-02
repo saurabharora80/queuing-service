@@ -12,7 +12,7 @@ trait DataService {
 
   def get(serviceParams: Map[String, String])(implicit ec: ExecutionContext): Future[CollectedResponse] =
     serviceParams.get(name) match {
-      case Some(params) => connector.get(s"$name?$params")(fn)
+      case Some(params) => connector.get(name, params)(fn)
       case None => Future.successful(Map())
     }
 }
