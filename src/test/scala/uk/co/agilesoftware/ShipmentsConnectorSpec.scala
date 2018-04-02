@@ -1,11 +1,6 @@
 package uk.co.agilesoftware
 
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.{Matchers, WordSpec}
-import org.scalatest.mockito.MockitoSugar
-
-class ShipmentsConnectorSpec extends WordSpec with WiremockSpec with MockitoSugar with WiremockStub with Matchers
-  with ScalaFutures with IntegrationPatience {
+class ShipmentsConnectorSpec extends ConnectorSpec {
 
   private val connector = new ShipmentsConnector {
     override val serviceBaseUrl: String = wiremockUrl

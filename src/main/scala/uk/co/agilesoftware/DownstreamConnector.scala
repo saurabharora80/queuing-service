@@ -16,8 +16,8 @@ trait DownstreamConnector {
   val serviceBaseUrl: String
   def fn: String => CollectedResponse
 
-  def get(name: String, params: String): Future[CollectedResponse] = {
-    http.singleRequest(HttpRequest(uri = s"$serviceBaseUrl/$name?q=$params")).flatMap {
+  def get(name: String, params: List[String]): Future[CollectedResponse] = {
+    http.singleRequest(HttpRequest(uri = s"$serviceBaseUrl/$name?q=${params.mkString(",")}")).flatMap {
       case HttpResponse(StatusCodes.OK, _, entity, _) if entity.contentType == ContentTypes.`application/json` =>
          Unmarshal(entity).to[String].map(fn)
       case _ => Future.successful(Map.empty)
