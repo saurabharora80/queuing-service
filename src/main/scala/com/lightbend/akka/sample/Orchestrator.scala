@@ -1,28 +1,30 @@
 package com.lightbend.akka.sample
 
-import java.net.URL
-
-import akka.actor.{ActorRef, ActorSystem}
-import com.lightbend.akka.sample.ShipmentsActor.Get
-import akka.pattern.ask
+import akka.http.scaladsl.model.Uri
 import akka.util.Timeout
-import scala.concurrent.duration._
+
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 object Orchestrator {
-  implicit val system: ActorSystem = ActorSystem("helloAkka")
-
-  private val shipmentService: ActorRef = system.actorOf(ShipmentsActor.props, "shipmentsActor")
 
   implicit lazy val timeout: Timeout = Timeout(5.seconds)
 
-  type CollectedResponse = Map[String, Map[String, _]]
+  def execute(uris: Seq[Uri]): Future[CollectedResponse] = {
+    import Singletons._
 
-  def execute(urls: Seq[URL]): Future[CollectedResponse] = {
-    urls.find(url => url.getPath.equals("/shipments")) match {
-      case Some(url) => (shipmentService ? Get(url)).map(_.asInstanceOf[CollectedResponse])
-      case None => Future.successful(Map())
-    }
+    val mappedUris = uris.map(uri => uri.path.toString() -> uri).toMap
+
+    //Define the futures outside the for yield to enable parallel execution
+    val eventualShipments = ShipmentDataService.get(mappedUris)
+    val eventualTrackings = TrackDataService.get(mappedUris)
+    val eventualPrices = PricingDataService.get(mappedUris)
+
+    for {
+      shipments <- eventualShipments
+      tracking <- eventualTrackings
+      prices <- eventualPrices
+    } yield shipments ++ tracking ++ prices
+
   }
 }
