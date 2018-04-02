@@ -1,25 +1,34 @@
 package uk.co.agilesoftware
 
-import akka.http.scaladsl.model.Uri
 import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{Matchers, WordSpec}
 
 class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with IntegrationPatience with WiremockSpec {
 
-  def given = new WiremockGivens()
+  private val orchestrator: Orchestrator = new Orchestrator {
+    override val shipmentDataService: DataService = new ShipmentDataService {
+      override protected def connector: Connector = new DownstreamConnector(wiremockUrl)
+    }
+    override val trackDataService: DataService = new TrackDataService {
+      override protected def connector: Connector = new DownstreamConnector(wiremockUrl)
+    }
+    override val pricingDataService: DataService = new PricingDataService {
+      override protected def connector: Connector = new DownstreamConnector(wiremockUrl)
+    }
+  }
 
   "Orchestrator" should {
-    def shipmentsUri(queryParams: String = "109347263,123456891") = Uri(s"$wiremockUrl/shipments?q=$queryParams")
-    def trackUrl(queryParams: String = "109347263,123456891") = Uri(s"$wiremockUrl/track?q=$queryParams")
-    def pricingUri(queryParams: String = "NL,CN") = Uri(s"$wiremockUrl/pricing?q=$queryParams")
+    val shipment = "shipments" -> "109347263,123456891"
+    val track = "track" -> "109347263,123456891"
+    val pricing = "pricing" -> "NL,CN"
 
     "fetch data from all 3 services" in {
       given.shipments.succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
       given.track.succeedWith("""{"109347263": "NEW", "123456891": "COLLECTING"}""")
       given.pricing.succeedWith("""{"NL": 14.24, "CN": 20.50}""")
 
-      whenReady(Orchestrator.execute(Seq(shipmentsUri("109347263,123456891"),trackUrl("109347263,123456891"),pricingUri("NL,CN")))) { response =>
+      whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
           response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
           response("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
 
@@ -37,7 +46,7 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
       given.track.succeeds
       given.pricing.fails
 
-      whenReady(Orchestrator.execute(Seq(shipmentsUri(),trackUrl(),pricingUri()))) { response =>
+      whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe true
         response.contains("track") shouldBe true
         response.contains("pricing") shouldBe false
@@ -49,7 +58,7 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
       given.track.succeeds
       given.pricing.succeeds
 
-      whenReady(Orchestrator.execute(Seq(shipmentsUri(),trackUrl(),pricingUri()))) { response =>
+      whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe false
         response.contains("track") shouldBe true
         response.contains("pricing") shouldBe true
@@ -61,7 +70,7 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
       given.track.fails
       given.pricing.succeeds
 
-      whenReady(Orchestrator.execute(Seq(shipmentsUri(),trackUrl(),pricingUri()))) { response =>
+      whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe true
         response.contains("track") shouldBe false
         response.contains("pricing") shouldBe true
@@ -69,6 +78,7 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
     }
   }
 
+  private def given = new WiremockGivens()
 }
 
 class WiremockGivens() {

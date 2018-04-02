@@ -1,24 +1,25 @@
 package uk.co.agilesoftware
 
-import akka.http.scaladsl.model.Uri
 import akka.util.Timeout
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object Orchestrator {
+trait Orchestrator {
 
   implicit lazy val timeout: Timeout = Timeout(5.seconds)
+  val shipmentDataService: DataService
+  val trackDataService: DataService
+  val pricingDataService: DataService
 
-  def execute(uris: Seq[Uri]): Future[CollectedResponse] = {
+
+  def execute(serviceParams: Map[String, String]): Future[CollectedResponse] = {
     import Singletons._
 
-    val mappedUris = uris.map(uri => uri.path.toString() -> uri).toMap
-
     //Define the futures outside the for yield to enable parallel execution
-    val eventualShipments = ShipmentDataService.get(mappedUris)
-    val eventualTrackings = TrackDataService.get(mappedUris)
-    val eventualPrices = PricingDataService.get(mappedUris)
+    val eventualShipments = shipmentDataService.get(serviceParams)
+    val eventualTrackings = trackDataService.get(serviceParams)
+    val eventualPrices = pricingDataService.get(serviceParams)
 
     for {
       shipments <- eventualShipments
@@ -27,4 +28,10 @@ object Orchestrator {
     } yield shipments ++ tracking ++ prices
 
   }
+}
+
+object Orchestrator extends Orchestrator {
+  override val shipmentDataService: DataService = ShipmentDataService
+  override val trackDataService: DataService = TrackDataService
+  override val pricingDataService: DataService = PricingDataService
 }

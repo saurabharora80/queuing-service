@@ -1,39 +1,50 @@
 package uk.co.agilesoftware
 
-import akka.http.scaladsl.model.Uri
-import spray.json._
 import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 trait DataService {
-  private val connector: Connector = DownstreamConnector()
-
+  protected def connector: Connector
   protected def fn: String => CollectedResponse
+  protected val name: String
 
-  protected val path: String
-
-  def get(mappedUris: Map[String, Uri])(implicit ec: ExecutionContext): Future[CollectedResponse] =
-    mappedUris.get(path) match {
-      case Some(url) => connector.get(url)(fn)
+  def get(serviceParams: Map[String, String])(implicit ec: ExecutionContext): Future[CollectedResponse] =
+    serviceParams.get(name) match {
+      case Some(params) => connector.get(s"$name?$params")(fn)
       case None => Future.successful(Map())
     }
 }
 
-object ShipmentDataService extends DataService {
+trait ShipmentDataService extends DataService {
   private val shipments = "shipments"
   override def fn: String => CollectedResponse = json => Map(shipments -> json.parseJson.convertTo[ShipmentResponse])
-  override protected val path: String = s"/$shipments"
+  override protected val name: String = shipments
 }
 
-object TrackDataService extends DataService {
+object ShipmentDataService extends ShipmentDataService {
+  override val connector: Connector = DownstreamConnector()
+}
+
+trait TrackDataService extends DataService {
   private val track = "track"
   override val fn: String => CollectedResponse = json => Map(track -> json.parseJson.convertTo[TrackResponse])
-  override protected val path: String = s"/$track"
+  override protected val name: String = track
 }
 
-object PricingDataService extends DataService {
+object TrackDataService extends TrackDataService {
+  override val connector: Connector = DownstreamConnector()
+}
+
+trait PricingDataService extends DataService {
   private val pricing = "pricing"
   override val fn: String => CollectedResponse = json => Map(pricing -> json.parseJson.convertTo[PricingResponse])
-  override protected val path: String = s"/$pricing"
+  override protected val name: String = pricing
 }
+
+object PricingDataService extends PricingDataService {
+  override val connector: Connector = DownstreamConnector()
+}
+
+
