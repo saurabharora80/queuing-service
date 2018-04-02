@@ -1,8 +1,8 @@
-package com.lightbend.akka.sample
+package uk.co.agilesoftware
 
 import akka.http.scaladsl.model.Uri
-import spray.json.DefaultJsonProtocol._
 import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.{ExecutionContext, Future}
 

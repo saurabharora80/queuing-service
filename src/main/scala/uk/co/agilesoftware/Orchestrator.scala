@@ -1,4 +1,4 @@
-package com.lightbend.akka.sample
+package uk.co.agilesoftware
 
 import akka.http.scaladsl.model.Uri
 import akka.util.Timeout

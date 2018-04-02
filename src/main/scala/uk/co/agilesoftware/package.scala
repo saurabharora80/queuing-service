@@ -1,6 +1,6 @@
-package com.lightbend.akka
+package uk.co
 
-package object sample {
+package object agilesoftware {
   type CollectedResponse = Map[String, Map[String, _]]
   type ShipmentResponse = Map[String, Seq[String]]
   type TrackResponse = Map[String, String]

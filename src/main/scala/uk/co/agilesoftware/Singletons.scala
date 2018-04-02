@@ -1,4 +1,4 @@
-package com.lightbend.akka.sample
+package uk.co.agilesoftware
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer

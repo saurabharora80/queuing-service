@@ -1,9 +1,9 @@
-package com.lightbend.akka.sample
+package uk.co.agilesoftware
 
 import akka.http.scaladsl.model.Uri
+import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{Matchers, WordSpec}
-import com.github.tomakehurst.wiremock.client.WireMock._
 
 class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with IntegrationPatience with WiremockSpec {
 
