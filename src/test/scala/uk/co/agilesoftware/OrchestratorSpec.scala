@@ -1,20 +1,25 @@
 package uk.co.agilesoftware
 
-import com.github.tomakehurst.wiremock.client.WireMock._
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{Matchers, WordSpec}
 
-class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with IntegrationPatience with WiremockSpec {
+class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with IntegrationPatience with WiremockSpec with WiremockStub {
 
   private val orchestrator: Orchestrator = new Orchestrator {
     override val shipmentDataService: DataService = new ShipmentDataService {
-      override protected def connector: Connector = new DownstreamConnector(wiremockUrl)
+      override protected def connector: DownstreamConnector = new ShipmentsConnector {
+        override val serviceBaseUrl: String = wiremockUrl
+      }
     }
     override val trackDataService: DataService = new TrackDataService {
-      override protected def connector: Connector = new DownstreamConnector(wiremockUrl)
+      override protected def connector: DownstreamConnector = new TrackConnector {
+        override val serviceBaseUrl: String = wiremockUrl
+      }
     }
     override val pricingDataService: DataService = new PricingDataService {
-      override protected def connector: Connector = new DownstreamConnector(wiremockUrl)
+      override protected def connector: DownstreamConnector = new PricingConnector {
+        override val serviceBaseUrl: String = wiremockUrl
+      }
     }
   }
 
@@ -78,22 +83,7 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
     }
   }
 
-  private def given(pathWithParams: (String, String)) = new Wiremock(pathWithParams._1, pathWithParams._2)
+
 }
 
-class Wiremock(path: String, params: String) {
-  def fails: Unit = stubFor(get(urlPathEqualTo(s"/$path")).willReturn(aResponse().withStatus(503)))
 
-  def succeeds: Unit = {
-    path match {
-      case "shipments" => succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
-      case "track" => succeedWith("""{"109347263": "NEW", "123456891": "COLLECTING"}""")
-      case "pricing" => succeedWith("""{"NL": 14.24, "CN": 20.50}""")
-    }
-  }
-
-  def succeedWith(jsonBody: String): Unit = {
-    stubFor(get(urlPathEqualTo(s"/$path")).withQueryParam("q", equalTo(params))
-      .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json").withBody(jsonBody)))
-  }
-}

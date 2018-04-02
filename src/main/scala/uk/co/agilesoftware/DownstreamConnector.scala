@@ -1,21 +1,22 @@
 package uk.co.agilesoftware
 
+import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.{Http, HttpExt}
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import scala.concurrent.Future
 
-trait Connector {
-  def get(name: String, params: String)(fn: String => CollectedResponse): Future[CollectedResponse]
-}
-
-class DownstreamConnector(serviceBaseUrl: String) extends Connector {
+trait DownstreamConnector {
   import Singletons._
 
   private val http = Http()
 
-  def get(name: String, params: String)(fn: String => CollectedResponse): Future[CollectedResponse] = {
+  val serviceBaseUrl: String
+  def fn: String => CollectedResponse
+
+  def get(name: String, params: String): Future[CollectedResponse] = {
     http.singleRequest(HttpRequest(uri = s"$serviceBaseUrl/$name?q=$params")).flatMap {
       case HttpResponse(StatusCodes.OK, _, entity, _) if entity.contentType == ContentTypes.`application/json` =>
          Unmarshal(entity).to[String].map(fn)
@@ -24,7 +25,29 @@ class DownstreamConnector(serviceBaseUrl: String) extends Connector {
   }
 }
 
-object DownstreamConnector {
-  //host should be read from configuration
-  def apply(host: String = "http://domain.com"): Connector = new DownstreamConnector(host)
+trait ShipmentsConnector extends DownstreamConnector {
+  override def fn: String => CollectedResponse = json => Map("shipments" -> json.parseJson.convertTo[ShipmentResponse])
+}
+
+object ShipmentsConnector extends ShipmentsConnector {
+  //should be read from configuration
+  override val serviceBaseUrl: String = "http://domain.com"
+}
+
+trait TrackConnector extends DownstreamConnector {
+  override def fn: String => CollectedResponse = json => Map("track" -> json.parseJson.convertTo[TrackResponse])
+}
+
+object TrackConnector extends TrackConnector {
+  //should be read from configuration
+  override val serviceBaseUrl: String = "http://domain.com"
+}
+
+trait PricingConnector extends DownstreamConnector {
+  override def fn: String => CollectedResponse = json => Map("pricing" -> json.parseJson.convertTo[PricingResponse])
+}
+
+object PricingConnector extends PricingConnector {
+  //should be read from configuration
+  override val serviceBaseUrl: String = "http://domain.com"
 }
