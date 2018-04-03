@@ -21,7 +21,7 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
    "request" should {
 
      "not be made if the queue doesn't get full" in {
-       val queueActor = system.actorOf(QueueActor.props(3))
+       val queueActor = system.actorOf(QueueActor.props(maxQueueSize = 3))
 
        val requestOne = system.actorOf(RequestActor(queueActor, apiConnector))
        val requestTwo = system.actorOf(RequestActor(queueActor, apiConnector))
@@ -46,7 +46,7 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
 
      "be made on when the queue gets full" in {
 
-       val queueActor = system.actorOf(QueueActor.props(3))
+       val queueActor = system.actorOf(QueueActor.props(maxQueueSize = 3))
 
        val requestOne = system.actorOf(RequestActor(queueActor, apiConnector))
        val requestTwo = system.actorOf(RequestActor(queueActor, apiConnector))
@@ -73,7 +73,7 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
 
      "be made if the queue fills up on the first request" in {
 
-       val queueActor = system.actorOf(QueueActor.props(3))
+       val queueActor = system.actorOf(QueueActor.props(maxQueueSize = 3))
        val requestOne = system.actorOf(RequestActor(queueActor, apiConnector))
 
        given(apiConnector.get(Seq("one", "two", "three")))
@@ -84,6 +84,35 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
        eventually {
          whenReady(requestOne ? GetResponse) {
            _.asInstanceOf[Option[ApiResponse]] shouldBe Some(Map("one" -> "valueOne", "two" -> "valueTwo", "three" -> "valueThree"))
+         }
+       }
+     }
+
+     "be made after 1 second even if queue is not full" in {
+
+       val queueActor = system.actorOf(QueueActor.props(maxQueueSize = 3))
+
+       val requestOne = system.actorOf(RequestActor(queueActor, apiConnector, 500.milliseconds))
+       val requestTwo = system.actorOf(RequestActor(queueActor, apiConnector, 500.milliseconds))
+
+       given(apiConnector.get(Seq("one", "two"))).willReturn(Future(Map("one" -> "valueOne", "two" -> "valueTwo")))
+
+       requestOne ! RequestFor(Seq("one"))
+
+       requestTwo ! RequestFor(Seq("two"))
+
+       //Wait for the Queue to be flushed by timer
+       Thread.sleep(550)
+
+       eventually {
+         whenReady(requestOne ? GetResponse) {
+           _.asInstanceOf[Option[ApiResponse]] shouldBe Some(Map("one" -> "valueOne"))
+         }
+       }
+
+       eventually {
+         whenReady(requestTwo ? GetResponse) {
+           _.asInstanceOf[Option[ApiResponse]] shouldBe Some(Map("two" -> "valueTwo"))
          }
        }
      }

@@ -1,7 +1,7 @@
 package uk.co.agilesoftware
 
 import akka.testkit.TestProbe
-import uk.co.agilesoftware.QueueActor.Append
+import uk.co.agilesoftware.QueueActor.{Append, FlushQueue}
 import uk.co.agilesoftware.RequestActor.MakeACallWith
 
 class QueueActorSpec extends ActorSpec("QueueActorSpec") {
@@ -54,6 +54,22 @@ class QueueActorSpec extends ActorSpec("QueueActorSpec") {
       senderOne.expectMsg(maxWaitForMsg, MakeACallWith(Seq("one", "two", "three")))
       senderTwo.expectMsg(maxWaitForMsg, MakeACallWith(Seq("one", "two", "three")))
 
+    }
+
+    "flush the queue and send params to all subscribers when it receives a FlushQueue message" in {
+      val queue = system.actorOf(QueueActor.props(3))
+
+      val senderOne = TestProbe()
+      val senderTwo = TestProbe()
+
+      senderOne.send(queue, Append(Seq("one")))
+
+      senderTwo.send(queue, Append(Seq("two")))
+
+      senderOne.send(queue, FlushQueue)
+
+      senderOne.expectMsg(maxWaitForMsg, MakeACallWith(Seq("one", "two")))
+      senderTwo.expectMsg(maxWaitForMsg, MakeACallWith(Seq("one", "two")))
     }
   }
 }
