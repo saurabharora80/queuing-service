@@ -1,6 +1,7 @@
 package uk.co.agilesoftware
 
 import akka.util.Timeout
+import uk.co.agilesoftware.service.{DataService, PricingDataService, ShipmentDataService, TrackDataService}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._

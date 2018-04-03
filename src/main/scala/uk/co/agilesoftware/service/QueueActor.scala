@@ -1,8 +1,8 @@
-package uk.co.agilesoftware
+package uk.co.agilesoftware.service
 
 import akka.actor.{Actor, ActorRef, Props}
-import uk.co.agilesoftware.QueueActor._
-import uk.co.agilesoftware.RequestActor.MakeACallWith
+import uk.co.agilesoftware.service.QueueActor.{Append, FlushQueue}
+import uk.co.agilesoftware.service.RequestActor.MakeACallWith
 
 import scala.collection.mutable
 

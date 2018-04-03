@@ -1,4 +1,4 @@
-package uk.co.agilesoftware
+package uk.co.agilesoftware.service
 
 import akka.actor.{ActorRef, ActorSystem}
 import org.mockito.BDDMockito._
@@ -6,6 +6,7 @@ import org.mockito.Mockito
 import org.scalatest.concurrent.{IntegrationPatience, PatienceConfiguration, ScalaFutures}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, WordSpec}
+import uk.co.agilesoftware.connector.DownstreamConnector
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

@@ -3,6 +3,9 @@ package uk.co.agilesoftware
 import akka.actor.{ActorRef, ActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
+import uk.co.agilesoftware.connector.{DownstreamConnector, PricingConnector, ShipmentsConnector, TrackConnector}
+import uk.co.agilesoftware.service._
+
 import scala.concurrent.duration._
 import scala.concurrent.Await
 

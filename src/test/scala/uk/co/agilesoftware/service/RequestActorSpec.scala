@@ -1,16 +1,18 @@
-package uk.co.agilesoftware
+package uk.co.agilesoftware.service
 
-import akka.util.Timeout
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import uk.co.agilesoftware.RequestActor._
 import akka.pattern.ask
+import akka.util.Timeout
 import org.mockito.BDDMockito.given
 import org.mockito.Mockito._
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.mockito.MockitoSugar
+import uk.co.agilesoftware.ConnectorResponse
+import uk.co.agilesoftware.connector.DownstreamConnector
+import uk.co.agilesoftware.service.RequestActor.{GetResponse, RequestFor}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually with ScalaFutures with MockitoSugar {
 

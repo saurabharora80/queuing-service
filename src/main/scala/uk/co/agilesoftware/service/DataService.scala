@@ -1,10 +1,12 @@
-package uk.co.agilesoftware
+package uk.co.agilesoftware.service
 
 import akka.actor.ActorRef
-import uk.co.agilesoftware.RequestActor.{GetResponse, RequestFor}
 import akka.pattern.ask
 import akka.util.Timeout
 import uk.co.agilesoftware.Singletons.system
+import uk.co.agilesoftware._
+import uk.co.agilesoftware.connector.{DownstreamConnector, PricingConnector, ShipmentsConnector, TrackConnector}
+import uk.co.agilesoftware.service.RequestActor.{GetResponse, RequestFor}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}

@@ -1,10 +1,13 @@
-package uk.co.agilesoftware
+package uk.co.agilesoftware.service
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
-import uk.co.agilesoftware.QueueActor._
-import uk.co.agilesoftware.RequestActor._
-import scala.concurrent.duration._
+import uk.co.agilesoftware.ConnectorResponse
+import uk.co.agilesoftware.connector.DownstreamConnector
+import uk.co.agilesoftware.service.QueueActor.{Append, FlushQueue}
+import uk.co.agilesoftware.service.RequestActor._
+
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 object RequestActor {
   case class RequestFor(params: Seq[String])

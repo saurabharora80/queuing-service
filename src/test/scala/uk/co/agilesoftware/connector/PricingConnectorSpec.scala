@@ -1,4 +1,4 @@
-package uk.co.agilesoftware
+package uk.co.agilesoftware.connector
 
 class PricingConnectorSpec extends ConnectorSpec {
 

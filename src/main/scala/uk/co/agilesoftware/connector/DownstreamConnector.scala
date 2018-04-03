@@ -1,11 +1,11 @@
-package uk.co.agilesoftware
+package uk.co.agilesoftware.connector
 
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import spray.json.DefaultJsonProtocol._
 import spray.json._
-
+import uk.co.agilesoftware._
+import spray.json.DefaultJsonProtocol._
 import scala.concurrent.Future
 
 trait DownstreamConnector {
