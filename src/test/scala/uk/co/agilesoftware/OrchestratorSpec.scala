@@ -1,25 +1,41 @@
 package uk.co.agilesoftware
 
+import akka.actor.{ActorRef, ActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
+import scala.concurrent.duration._
+import scala.concurrent.Await
 
-class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with IntegrationPatience with WiremockSpec with WiremockStub {
+class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with IntegrationPatience with WiremockSpec
+  with WiremockStub with BeforeAndAfterAll {
+  private implicit val system: ActorSystem = ActorSystem("test-actor-system")
+
+  override def afterAll(): Unit = {
+    Await.result(system.terminate(), 500 milliseconds)
+  }
 
   private val orchestrator: Orchestrator = new Orchestrator {
     override val shipmentDataService: DataService = new ShipmentDataService {
       override protected def connector: DownstreamConnector = new ShipmentsConnector {
         override val serviceBaseUrl: String = wiremockUrl
+        override val name: String = "shipments"
       }
+
+      override protected def queue: ActorRef = system.actorOf(QueueActor(2))
     }
     override val trackDataService: DataService = new TrackDataService {
       override protected def connector: DownstreamConnector = new TrackConnector {
         override val serviceBaseUrl: String = wiremockUrl
+        override val name: String = "track"
       }
+      override protected def queue: ActorRef = system.actorOf(QueueActor(2))
     }
     override val pricingDataService: DataService = new PricingDataService {
       override protected def connector: DownstreamConnector = new PricingConnector {
         override val serviceBaseUrl: String = wiremockUrl
+        override val name: String = "pricing"
       }
+      override protected def queue: ActorRef = system.actorOf(QueueActor(2))
     }
   }
 
@@ -54,7 +70,7 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
       whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe true
         response.contains("track") shouldBe true
-        response.contains("pricing") shouldBe false
+        response.get("pricing") shouldBe Some(Map())
       }
     }
 
@@ -64,7 +80,7 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
       given(pricing).succeeds
 
       whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
-        response.contains("shipments") shouldBe false
+        response.get("shipments") shouldBe Some(Map())
         response.contains("track") shouldBe true
         response.contains("pricing") shouldBe true
       }
@@ -77,7 +93,7 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
 
       whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe true
-        response.contains("track") shouldBe false
+        response.get("track") shouldBe Some(Map())
         response.contains("pricing") shouldBe true
       }
     }

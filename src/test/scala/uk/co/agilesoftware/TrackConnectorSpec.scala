@@ -4,6 +4,7 @@ class TrackConnectorSpec extends ConnectorSpec {
 
   private val connector = new TrackConnector {
     override val serviceBaseUrl: String = wiremockUrl
+    override val name: String = "track"
   }
 
   "connector" should {
@@ -13,15 +14,15 @@ class TrackConnectorSpec extends ConnectorSpec {
 
       given(track).succeedWith("""{"109347263": "NEW", "123456891": "COLLECTING"}""")
 
-      whenReady(connector.get(track._1, track._2)) {
-        _ shouldBe Map("track" -> Map("109347263" -> "NEW", "123456891" -> "COLLECTING"))
+      whenReady(connector.get(track._2)) {
+        _ shouldBe Map("109347263" -> "NEW", "123456891" -> "COLLECTING")
       }
     }
 
     "return empty map if service is unreachable" in {
       given(track).fails
 
-      whenReady(connector.get(track._1, track._2)) { _ shouldBe empty }
+      whenReady(connector.get(track._2)) { _ shouldBe empty }
     }
   }
 }

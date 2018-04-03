@@ -10,7 +10,8 @@ object QueueActor {
   case class Append(params: Seq[String])
   case object FlushQueue
 
-  def props(maxQueueSize: Int = 5): Props = Props(new QueueActor(maxQueueSize))
+  //This should be read from config
+  def apply(maxQueueSize: Int = 5): Props = Props(new QueueActor(maxQueueSize))
 }
 
 class QueueActor(maxQueueSize: Int) extends Actor {

@@ -1,16 +1,49 @@
 package uk.co.agilesoftware
 
-import scala.concurrent.Future
+import akka.actor.ActorRef
+import uk.co.agilesoftware.RequestActor.{GetResponse, RequestFor}
+import akka.pattern.ask
+import akka.util.Timeout
+import uk.co.agilesoftware.Singletons.system
+
+import scala.concurrent.duration._
+import scala.concurrent.{Future, Promise}
 
 trait DataService {
+  import Singletons._
+
   protected def connector: DownstreamConnector
+  protected def queue: ActorRef
   val name: String
+  protected val forcePullResponseIn: FiniteDuration = 5.seconds
 
-  val params:List[String] = List.empty
+  private implicit lazy val actorTimeout: Timeout = Timeout(5.seconds)
 
-  def get(serviceParams: List[String]): Future[CollectedResponse] = {
-    connector.get(name, serviceParams)
+  def get(serviceParams: Seq[String]): Future[Data] = {
+    def scheduleDelayedPoll(promise: Promise[Data], request: ActorRef): Unit = {
+      system.scheduler.schedule(100 milliseconds, 100 milliseconds) {
+        pollForData(promise, request)
+      }
+    }
+
+    def pollForData(promise: Promise[Data], request: ActorRef): Unit = {
+      (request ? GetResponse).map {
+        case Some(response) => promise.success(Map(name -> response.asInstanceOf[ConnectorResponse]))
+        case None => scheduleDelayedPoll(promise, request)
+      }.recover {
+        case ex => promise.failure(ex)
+      }
+    }
+
+    val request = system.actorOf(RequestActor(queue, connector, forcePullResponseIn))
+
+    request ! RequestFor(serviceParams)
+
+    val pResponse = Promise[Data]
+    pollForData(pResponse, request)
+    pResponse.future
   }
+
 }
 
 trait ShipmentDataService extends DataService {
@@ -19,6 +52,7 @@ trait ShipmentDataService extends DataService {
 
 object ShipmentDataService extends ShipmentDataService {
   override val connector: DownstreamConnector = ShipmentsConnector
+  override protected val queue: ActorRef = system.actorOf(QueueActor())
 }
 
 trait TrackDataService extends DataService {
@@ -27,6 +61,7 @@ trait TrackDataService extends DataService {
 
 object TrackDataService extends TrackDataService {
   override val connector: DownstreamConnector = TrackConnector
+  override protected val queue: ActorRef = system.actorOf(QueueActor())
 }
 
 trait PricingDataService extends DataService {
@@ -35,6 +70,7 @@ trait PricingDataService extends DataService {
 
 object PricingDataService extends PricingDataService {
   override val connector: DownstreamConnector = PricingConnector
+  override protected val queue: ActorRef = system.actorOf(QueueActor())
 }
 
 

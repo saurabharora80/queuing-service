@@ -13,14 +13,14 @@ object RequestActor {
   case object ForceApiCall
 
   case object MaxWait
-  def apply(queueActor: ActorRef, connector: ApiConnector, maxWait: FiniteDuration = 5.seconds)(implicit ec: ExecutionContext)
+  def apply(queueActor: ActorRef, connector: DownstreamConnector, maxWait: FiniteDuration = 5.seconds)(implicit ec: ExecutionContext)
     = Props(new RequestActor(queueActor, connector, maxWait))
 }
 
-class RequestActor(queue: ActorRef, connector: ApiConnector, maxWait: FiniteDuration = 5.seconds)(implicit ec: ExecutionContext) extends Actor
+class RequestActor(queue: ActorRef, connector: DownstreamConnector, maxWait: FiniteDuration = 5.seconds)(implicit ec: ExecutionContext) extends Actor
   with ActorLogging with Timers {
 
-  var mayBeResponse: Option[ApiResponse] = None
+  var mayBeResponse: Option[ConnectorResponse] = None
   var cachedParams = Seq.empty[String]
 
   override def receive: Receive = {

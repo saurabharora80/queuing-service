@@ -9,4 +9,5 @@ object Singletons {
   implicit val system: ActorSystem = ActorSystem("helloAkka")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContext = system.dispatcher
+
 }

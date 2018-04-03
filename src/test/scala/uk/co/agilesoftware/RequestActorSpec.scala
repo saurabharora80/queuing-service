@@ -16,12 +16,12 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
 
   implicit lazy val timeout: Timeout = Timeout(5.seconds)
 
-  val apiConnector: ApiConnector = mock[ApiConnector]
+  val apiConnector: DownstreamConnector = mock[DownstreamConnector]
 
    "request" should {
 
      "not be made if the queue doesn't get full" in {
-       val queueActor = system.actorOf(QueueActor.props(maxQueueSize = 3))
+       val queueActor = system.actorOf(QueueActor(maxQueueSize = 3))
 
        val requestOne = system.actorOf(RequestActor(queueActor, apiConnector))
        val requestTwo = system.actorOf(RequestActor(queueActor, apiConnector))
@@ -31,13 +31,13 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
 
        eventually {
          whenReady(requestOne ? GetResponse) {
-           _.asInstanceOf[Option[ApiResponse]] shouldBe empty
+           _.asInstanceOf[Option[ConnectorResponse]] shouldBe empty
          }
        }
 
        eventually {
          whenReady(requestTwo ? GetResponse) {
-           _.asInstanceOf[Option[ApiResponse]] shouldBe empty
+           _.asInstanceOf[Option[ConnectorResponse]] shouldBe empty
          }
        }
 
@@ -46,7 +46,7 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
 
      "be made on when the queue gets full" in {
 
-       val queueActor = system.actorOf(QueueActor.props(maxQueueSize = 3))
+       val queueActor = system.actorOf(QueueActor(maxQueueSize = 3))
 
        val requestOne = system.actorOf(RequestActor(queueActor, apiConnector))
        val requestTwo = system.actorOf(RequestActor(queueActor, apiConnector))
@@ -60,20 +60,20 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
 
        eventually {
          whenReady(requestOne ? GetResponse) {
-           _.asInstanceOf[Option[ApiResponse]] shouldBe Some(Map("one" -> "valueOne", "two" -> "valueTwo"))
+           _.asInstanceOf[Option[ConnectorResponse]] shouldBe Some(Map("one" -> "valueOne", "two" -> "valueTwo"))
          }
        }
 
        eventually {
          whenReady(requestTwo ? GetResponse) {
-           _.asInstanceOf[Option[ApiResponse]] shouldBe Some(Map("three" -> "valueThree"))
+           _.asInstanceOf[Option[ConnectorResponse]] shouldBe Some(Map("three" -> "valueThree"))
          }
        }
      }
 
      "be made if the queue fills up on the first request" in {
 
-       val queueActor = system.actorOf(QueueActor.props(maxQueueSize = 3))
+       val queueActor = system.actorOf(QueueActor(maxQueueSize = 3))
        val requestOne = system.actorOf(RequestActor(queueActor, apiConnector))
 
        given(apiConnector.get(Seq("one", "two", "three")))
@@ -83,14 +83,14 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
 
        eventually {
          whenReady(requestOne ? GetResponse) {
-           _.asInstanceOf[Option[ApiResponse]] shouldBe Some(Map("one" -> "valueOne", "two" -> "valueTwo", "three" -> "valueThree"))
+           _.asInstanceOf[Option[ConnectorResponse]] shouldBe Some(Map("one" -> "valueOne", "two" -> "valueTwo", "three" -> "valueThree"))
          }
        }
      }
 
      "be made after 1 second even if queue is not full" in {
 
-       val queueActor = system.actorOf(QueueActor.props(maxQueueSize = 3))
+       val queueActor = system.actorOf(QueueActor(maxQueueSize = 3))
 
        val requestOne = system.actorOf(RequestActor(queueActor, apiConnector, 500.milliseconds))
        val requestTwo = system.actorOf(RequestActor(queueActor, apiConnector, 500.milliseconds))
@@ -106,13 +106,13 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
 
        eventually {
          whenReady(requestOne ? GetResponse) {
-           _.asInstanceOf[Option[ApiResponse]] shouldBe Some(Map("one" -> "valueOne"))
+           _.asInstanceOf[Option[ConnectorResponse]] shouldBe Some(Map("one" -> "valueOne"))
          }
        }
 
        eventually {
          whenReady(requestTwo ? GetResponse) {
-           _.asInstanceOf[Option[ApiResponse]] shouldBe Some(Map("two" -> "valueTwo"))
+           _.asInstanceOf[Option[ConnectorResponse]] shouldBe Some(Map("two" -> "valueTwo"))
          }
        }
      }

@@ -13,23 +13,23 @@ trait Orchestrator {
   val pricingDataService: DataService
 
   class DataServiceWrapper(dataService: DataService) {
-    def mayBeItems(implicit serviceParams: Map[String, String], ec: ExecutionContext): Future[CollectedResponse] = {
+    def eventualData(implicit serviceParams: Map[String, String], ec: ExecutionContext): Future[Data] = {
       serviceParams.get(dataService.name) match {
-        case Some(params) => dataService.get(params.split(",").toList)
+        case Some(params) => dataService.get(params.split(",").toSeq)
         case None => Future(Map.empty)
       }
     }
   }
 
-  implicit def dataServiceWrapper(dataService: DataService) = new DataServiceWrapper(dataService)
+  private implicit def dataServiceWrapper(dataService: DataService) = new DataServiceWrapper(dataService)
 
-  def execute(implicit serviceParams: Map[String, String]): Future[CollectedResponse] = {
+  def execute(implicit serviceParams: Map[String, String]): Future[Data] = {
     import Singletons._
 
     //Define the futures outside the for yield to enable parallel execution
-    val eventualShipments = shipmentDataService.mayBeItems
-    val eventualTrackings = trackDataService.mayBeItems
-    val eventualPrices = pricingDataService.mayBeItems
+    val eventualShipments = shipmentDataService.eventualData
+    val eventualTrackings = trackDataService.eventualData
+    val eventualPrices = pricingDataService.eventualData
 
     for {
       shipments <- eventualShipments

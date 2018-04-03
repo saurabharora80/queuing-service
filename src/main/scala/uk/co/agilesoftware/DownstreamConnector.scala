@@ -14,9 +14,10 @@ trait DownstreamConnector {
   private val http = Http()
 
   val serviceBaseUrl: String
-  def fn: String => CollectedResponse
+  val name: String
+  def fn: String => ConnectorResponse
 
-  def get(name: String, params: List[String]): Future[CollectedResponse] = {
+  def get(params: Seq[String]): Future[ConnectorResponse] = {
     http.singleRequest(HttpRequest(uri = s"$serviceBaseUrl/$name?q=${params.mkString(",")}")).flatMap {
       case HttpResponse(StatusCodes.OK, _, entity, _) if entity.contentType == ContentTypes.`application/json` =>
          Unmarshal(entity).to[String].map(fn)
@@ -26,28 +27,31 @@ trait DownstreamConnector {
 }
 
 trait ShipmentsConnector extends DownstreamConnector {
-  override def fn: String => CollectedResponse = json => Map("shipments" -> json.parseJson.convertTo[ShipmentResponse])
+  override def fn: String => ConnectorResponse = json => json.parseJson.convertTo[ShipmentResponse]
 }
 
 object ShipmentsConnector extends ShipmentsConnector {
   //should be read from configuration
   override val serviceBaseUrl: String = "http://domain.com"
+  override val name: String = "shipments"
 }
 
 trait TrackConnector extends DownstreamConnector {
-  override def fn: String => CollectedResponse = json => Map("track" -> json.parseJson.convertTo[TrackResponse])
+  override def fn: String => ConnectorResponse = json => json.parseJson.convertTo[TrackResponse]
 }
 
 object TrackConnector extends TrackConnector {
   //should be read from configuration
   override val serviceBaseUrl: String = "http://domain.com"
+  override val name: String = "track"
 }
 
 trait PricingConnector extends DownstreamConnector {
-  override def fn: String => CollectedResponse = json => Map("pricing" -> json.parseJson.convertTo[PricingResponse])
+  override def fn: String => ConnectorResponse = json => json.parseJson.convertTo[PricingResponse]
 }
 
 object PricingConnector extends PricingConnector {
   //should be read from configuration
   override val serviceBaseUrl: String = "http://domain.com"
+  override val name: String = "pricing"
 }
