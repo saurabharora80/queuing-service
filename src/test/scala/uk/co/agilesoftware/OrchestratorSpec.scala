@@ -61,6 +61,49 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
       }
     }
 
+    "ignore duplicate params" in {
+      val shipmentsWithDuplicateParam = "shipments" -> "109347263,123456891,123456891"
+
+      given("shipments" -> "109347263,123456891").succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
+
+      whenReady(orchestrator.execute(Seq(shipmentsWithDuplicateParam).toMap)) { response =>
+        response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
+        response("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
+      }
+    }
+
+    "be able to make multiple calls" in {
+      val anotherShipmentReq = "shipments" -> "109347264,123456892"
+
+      given(shipment).succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
+      given(anotherShipmentReq).succeedWith("""{"109347264": ["box", "box", "palet"], "123456892": ["envelope"]}""")
+
+      whenReady(orchestrator.execute(Seq(shipment).toMap)) { response =>
+        response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
+        response("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
+      }
+
+      whenReady(orchestrator.execute(Seq(anotherShipmentReq).toMap)) { response =>
+        response("shipments")("109347264").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
+        response("shipments")("123456892").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
+      }
+    }
+
+    "be able to make multiple calls with partial params list" ignore {
+      val anotherShipment = "shipments" -> "109347263"
+      val yetAnotherShipment = "shipments" -> "123456891"
+
+      given("shipments" -> "109347263,123456891").succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
+
+      whenReady(orchestrator.execute(Seq(anotherShipment).toMap)) { response =>
+        response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
+      }
+
+      whenReady(orchestrator.execute(Seq(yetAnotherShipment).toMap)) { response =>
+        response("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
+      }
+    }
+
     "fetch data for shipments and track if pricing is unreachable" in {
 
       given(shipment).succeeds

@@ -15,7 +15,7 @@ trait Orchestrator {
   class DataServiceWrapper(dataService: DataService) {
     def eventualData(implicit serviceParams: Map[String, String], ec: ExecutionContext): Future[Data] = {
       serviceParams.get(dataService.name) match {
-        case Some(params) => dataService.get(params.split(",").toSeq)
+        case Some(params) => dataService.get(params.split(",").toSeq.distinct)
         case None => Future(Map.empty)
       }
     }

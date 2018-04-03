@@ -88,7 +88,7 @@ class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually wit
        }
      }
 
-     "be made after 1 second even if queue is not full" in {
+     "be made within 1 second even if queue is not full" in {
 
        val queueActor = system.actorOf(QueueActor(maxQueueSize = 3))
 

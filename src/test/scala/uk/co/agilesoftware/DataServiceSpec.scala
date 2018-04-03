@@ -1,23 +1,19 @@
 package uk.co.agilesoftware
 
 import akka.actor.{ActorRef, ActorSystem}
-import org.mockito.BDDMockito.given
+import org.mockito.BDDMockito._
 import org.mockito.Mockito
 import org.scalatest.concurrent.{IntegrationPatience, PatienceConfiguration, ScalaFutures}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, WordSpec}
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 
 class DataServiceSpec extends WordSpec with Matchers with ScalaFutures with IntegrationPatience with BeforeAndAfterAll
   with MockitoSugar with BeforeAndAfterEach {
 
   private implicit val system: ActorSystem = ActorSystem("test-actor-system")
-
-  override def afterAll(): Unit = {
-    Await.result(system.terminate(), 1000 milliseconds)
-  }
 
   private val mockConnector = mock[DownstreamConnector]
 
