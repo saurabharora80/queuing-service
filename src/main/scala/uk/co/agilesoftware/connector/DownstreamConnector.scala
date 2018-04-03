@@ -17,6 +17,7 @@ trait DownstreamConnector {
   val name: String
   def fn: String => ConnectorResponse
 
+  //Need to implement caching to avoid multiples call to the same resource from multiple RequestActors
   def get(params: Seq[String]): Future[ConnectorResponse] = {
     http.singleRequest(HttpRequest(uri = s"$serviceBaseUrl/$name?q=${params.mkString(",")}")).flatMap {
       case HttpResponse(StatusCodes.OK, _, entity, _) if entity.contentType == ContentTypes.`application/json` =>
