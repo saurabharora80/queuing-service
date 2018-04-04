@@ -29,7 +29,7 @@ class DataServiceSpec extends WordSpec with Matchers with ScalaFutures with Inte
   }
 
   "service" should {
-    "get data if a single receives capped number of params (which is 2 as per config above)" in
+    "get data if a single receives capped number of params" in
       new TestDataService(system.actorOf(QueueActor(maxQueueSize = 2))) {
 
         val params = Seq("one", "two")
@@ -55,7 +55,7 @@ class DataServiceSpec extends WordSpec with Matchers with ScalaFutures with Inte
       }
     }
 
-    "get data when multiple calls receives capped number of params (which is 2 as per config above)" ignore
+    "get data when multiple calls receives capped number of params" ignore
       new TestDataService(system.actorOf(QueueActor(maxQueueSize = 2))) {
 
       given(mockConnector.get(Seq("one", "two")))

@@ -3,7 +3,7 @@ package uk.co.agilesoftware.service
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
-import uk.co.agilesoftware.Singletons.system
+import uk.co.agilesoftware.Singletons._
 import uk.co.agilesoftware._
 import uk.co.agilesoftware.connector.{DownstreamConnector, PricingConnector, ShipmentsConnector, TrackConnector}
 import uk.co.agilesoftware.service.RequestActor.{GetResponse, RequestFor}
@@ -12,7 +12,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 
 trait DataService {
-  import Singletons._
 
   protected def connector: DownstreamConnector
   protected def queue: ActorRef
@@ -23,7 +22,7 @@ trait DataService {
 
   def get(serviceParams: Seq[String]): Future[Data] = {
     def scheduleDelayedPoll(promise: Promise[Data], request: ActorRef): Unit = {
-      system.scheduler.schedule(100 milliseconds, 100 milliseconds) {
+      system.scheduler.schedule(500 milliseconds, 500 milliseconds) {
         pollForData(promise, request)
       }
     }
