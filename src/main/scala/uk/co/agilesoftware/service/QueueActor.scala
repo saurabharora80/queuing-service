@@ -1,6 +1,6 @@
 package uk.co.agilesoftware.service
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import uk.co.agilesoftware.service.QueueActor.{Append, FlushQueue}
 import uk.co.agilesoftware.service.RequestActor.MakeACallWith
 
@@ -14,7 +14,7 @@ object QueueActor {
   def apply(maxQueueSize: Int = 5): Props = Props(new QueueActor(maxQueueSize))
 }
 
-class QueueActor(maxQueueSize: Int) extends Actor {
+class QueueActor(maxQueueSize: Int) extends Actor with ActorLogging {
   val subscribers: mutable.Queue[ActorRef] = new mutable.Queue()
   val paramQueue: mutable.Queue[String] = new mutable.Queue()
 

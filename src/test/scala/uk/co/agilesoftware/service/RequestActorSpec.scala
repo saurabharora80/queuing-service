@@ -3,7 +3,9 @@ package uk.co.agilesoftware.service
 import akka.pattern.ask
 import akka.util.Timeout
 import org.mockito.BDDMockito.given
+import org.mockito.Mockito
 import org.mockito.Mockito._
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.{Eventually, IntegrationPatience, ScalaFutures}
 import org.scalatest.mockito.MockitoSugar
 import uk.co.agilesoftware.ConnectorResponse
@@ -15,11 +17,16 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class RequestActorSpec extends ActorSpec("RequestActorSpec") with Eventually with ScalaFutures with MockitoSugar
-  with IntegrationPatience {
+  with IntegrationPatience with BeforeAndAfterEach {
 
   implicit lazy val timeout: Timeout = Timeout(5.seconds)
 
   val apiConnector: DownstreamConnector = mock[DownstreamConnector]
+
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    Mockito.reset(apiConnector)
+  }
 
    "request" should {
 

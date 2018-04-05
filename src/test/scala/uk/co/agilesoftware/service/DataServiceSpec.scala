@@ -8,6 +8,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, WordSpec}
 import uk.co.agilesoftware.connector.DownstreamConnector
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -23,7 +24,7 @@ class DataServiceSpec extends WordSpec with Matchers with ScalaFutures with Inte
     Mockito.reset(mockConnector)
   }
 
-  class TestDataService(override val queue: ActorRef, override val forcePullResponseIn: FiniteDuration = 2.seconds) extends DataService {
+  class TestDataService(override val queue: ActorRef, override val forcePullResponseIn: FiniteDuration = 5.seconds) extends DataService {
     override protected def connector: DownstreamConnector = mockConnector
     override val name: String = "shipments"
   }
@@ -43,7 +44,7 @@ class DataServiceSpec extends WordSpec with Matchers with ScalaFutures with Inte
     }
 
     "force pull data from backend after 1" in
-      new TestDataService(system.actorOf(QueueActor(maxQueueSize = 2)), 1.second){
+      new TestDataService(system.actorOf(QueueActor(maxQueueSize = 2)), forcePullResponseIn = 1.second){
 
         val params = Seq("one")
 
@@ -55,18 +56,23 @@ class DataServiceSpec extends WordSpec with Matchers with ScalaFutures with Inte
       }
     }
 
-    "get data when multiple calls receives capped number of params" ignore
-      new TestDataService(system.actorOf(QueueActor(maxQueueSize = 2))) {
+    "get data when capped number of params is received in multiple calls" in
+      new TestDataService(system.actorOf(QueueActor(maxQueueSize = 2), "test-queue")){
 
       given(mockConnector.get(Seq("one", "two")))
         .willReturn(Future.successful(Map("one" -> "valueOne", "two" -> "valueTwo")))
 
-      whenReady(get(Seq("one"))) { data =>
-        data shouldBe Map("shipments" -> Map("one" -> "valueOne"))
-      }
+      //Future initialised outside for yield to allow parallel execution
+      private val eventualResponseOne = get(Seq("one"))
+      private val eventualResponseTwo = get(Seq("two"))
 
-      whenReady(get(Seq("two"))) { data =>
-        data shouldBe Map("shipments" -> Map("two" -> "valueTwo"))
+      whenReady(for {
+        responseOne <- eventualResponseOne
+        responseTwo <- eventualResponseTwo
+      } yield (responseOne, responseTwo)) {
+        case (resOne, resTwo) =>
+          resOne shouldBe Map("shipments" -> Map("one" -> "valueOne"))
+          resTwo shouldBe Map("shipments" -> Map("two" -> "valueTwo"))
       }
     }
 

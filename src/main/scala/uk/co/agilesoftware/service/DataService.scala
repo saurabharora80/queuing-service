@@ -18,11 +18,11 @@ trait DataService {
   val name: String
   protected val forcePullResponseIn: FiniteDuration = 5.seconds
 
-  private implicit lazy val actorTimeout: Timeout = Timeout(5.seconds)
+  private implicit lazy val actorTimeout: Timeout = Timeout(3.seconds)
 
   def get(serviceParams: Seq[String]): Future[Data] = {
     def scheduleDelayedPoll(promise: Promise[Data], request: ActorRef): Unit = {
-      system.scheduler.schedule(500 milliseconds, 500 milliseconds) {
+      system.scheduler.scheduleOnce(500 milliseconds) {
         pollForData(promise, request)
       }
     }

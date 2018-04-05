@@ -13,7 +13,7 @@ trait Orchestrator {
   val trackDataService: DataService
   val pricingDataService: DataService
 
-  class DataServiceWrapper(dataService: DataService) {
+  implicit class DataServiceWrapper(dataService: DataService) {
     def eventualData(implicit serviceParams: Map[String, String], ec: ExecutionContext): Future[Data] = {
       serviceParams.get(dataService.name) match {
         case Some(params) => dataService.get(params.split(",").toSeq.distinct)
@@ -21,8 +21,6 @@ trait Orchestrator {
       }
     }
   }
-
-  private implicit def dataServiceWrapper(dataService: DataService) = new DataServiceWrapper(dataService)
 
   def execute(implicit serviceParams: Map[String, String]): Future[Data] = {
     import Singletons._

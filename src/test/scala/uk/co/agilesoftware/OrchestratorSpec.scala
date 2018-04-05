@@ -2,10 +2,12 @@ package uk.co.agilesoftware
 
 import akka.actor.{ActorRef, ActorSystem}
 import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import uk.co.agilesoftware.connector.{DownstreamConnector, PricingConnector, ShipmentsConnector, TrackConnector}
 import uk.co.agilesoftware.service._
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.Await
 
@@ -17,14 +19,19 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
     Await.result(system.terminate(), 500 milliseconds)
   }
 
-  private val orchestrator: Orchestrator = new Orchestrator {
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(
+    timeout = scaled(Span(7, Seconds)),
+    interval = scaled(Span(150, Millis))
+  )
+
+  class TestOrchestrator(shipmentsQueue: ActorRef = system.actorOf(QueueActor(2))) extends Orchestrator {
     override val shipmentDataService: DataService = new ShipmentDataService {
       override protected def connector: DownstreamConnector = new ShipmentsConnector {
         override val serviceBaseUrl: String = wiremockUrl
         override val name: String = "shipments"
-      }
 
-      override protected def queue: ActorRef = system.actorOf(QueueActor(2))
+      }
+      override protected def queue: ActorRef = shipmentsQueue
     }
     override val trackDataService: DataService = new TrackDataService {
       override protected def connector: DownstreamConnector = new TrackConnector {
@@ -47,12 +54,12 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
     val track = "track" -> "109347263,123456891"
     val pricing = "pricing" -> "NL,CN"
 
-    "fetch data from all 3 services" in {
+    "fetch data from all 3 services" in new TestOrchestrator {
       given(shipment).succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
       given(track).succeedWith("""{"109347263": "NEW", "123456891": "COLLECTING"}""")
       given(pricing).succeedWith("""{"NL": 14.24, "CN": 20.50}""")
 
-      whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
+      whenReady(execute(Seq(shipment,track, pricing).toMap)) { response =>
           response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
           response("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
 
@@ -64,80 +71,87 @@ class OrchestratorSpec extends WordSpec with Matchers with ScalaFutures with Int
       }
     }
 
-    "ignore duplicate params" in {
+    "ignore duplicate params" in new TestOrchestrator {
       val shipmentsWithDuplicateParam = "shipments" -> "109347263,123456891,123456891"
 
       given("shipments" -> "109347263,123456891").succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
 
-      whenReady(orchestrator.execute(Seq(shipmentsWithDuplicateParam).toMap)) { response =>
+      whenReady(execute(Seq(shipmentsWithDuplicateParam).toMap)) { response =>
         response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
         response("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
       }
     }
 
-    "be able to make multiple calls" in {
-      val anotherShipmentReq = "shipments" -> "109347264,123456892"
+    "be able to make parallel calls each with capped params list" in new TestOrchestrator {
+      private val anotherShipmentReq = "shipments" -> "109347264,123456892"
 
       given(shipment).succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
       given(anotherShipmentReq).succeedWith("""{"109347264": ["box", "box", "palet"], "123456892": ["envelope"]}""")
 
-      whenReady(orchestrator.execute(Seq(shipment).toMap)) { response =>
-        response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
-        response("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
-      }
+      private val eventualResponseOne = execute(Seq(shipment).toMap)
+      private val eventualResponseTwo = execute(Seq(anotherShipmentReq).toMap)
 
-      whenReady(orchestrator.execute(Seq(anotherShipmentReq).toMap)) { response =>
-        response("shipments")("109347264").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
-        response("shipments")("123456892").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
+      whenReady(for {
+        responseOne <- eventualResponseOne
+        responseTwo <- eventualResponseTwo
+      } yield (responseOne, responseTwo)) {
+        case (responseOne, responseTwo) =>
+          responseOne("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
+          responseOne("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
+
+          responseTwo("shipments")("109347264").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
+          responseTwo("shipments")("123456892").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
       }
     }
 
-    "be able to make multiple calls with partial params list" ignore {
-      val anotherShipment = "shipments" -> "109347263"
-      val yetAnotherShipment = "shipments" -> "123456891"
-
+    "be able to make parallel calls each with partial params list" in
+      new TestOrchestrator(system.actorOf(QueueActor(2))) {
       given("shipments" -> "109347263,123456891").succeedWith("""{"109347263": ["box", "box", "palet"], "123456891": ["envelope"]}""")
 
-      whenReady(orchestrator.execute(Seq(anotherShipment).toMap)) { response =>
-        response("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
-      }
+      private val eventualResponseOne = execute(Seq("shipments" -> "109347263").toMap)
+      private val eventualResponseTwo = execute(Seq("shipments" -> "123456891").toMap)
 
-      whenReady(orchestrator.execute(Seq(yetAnotherShipment).toMap)) { response =>
-        response("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
+      whenReady(for {
+          responseOne <- eventualResponseOne
+          responseTwo <- eventualResponseTwo
+        } yield (responseOne, responseTwo)) {
+        case (responseOne, responseTwo) =>
+          responseOne("shipments")("109347263").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("box", "box", "palet")
+          responseTwo("shipments")("123456891").asInstanceOf[Seq[String]] should contain theSameElementsAs Seq("envelope")
       }
     }
 
-    "fetch data for shipments and track if pricing is unreachable" in {
+    "fetch data for shipments and track if pricing is unreachable" in new TestOrchestrator {
 
       given(shipment).succeeds
       given(track).succeeds
       given(pricing).fails
 
-      whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
+      whenReady(execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe true
         response.contains("track") shouldBe true
         response.get("pricing") shouldBe Some(Map())
       }
     }
 
-    "fetch data for pricing and track if shipments is unreachable" in {
+    "fetch data for pricing and track if shipments is unreachable" in new TestOrchestrator {
       given(shipment).fails
       given(track).succeeds
       given(pricing).succeeds
 
-      whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
+      whenReady(execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.get("shipments") shouldBe Some(Map())
         response.contains("track") shouldBe true
         response.contains("pricing") shouldBe true
       }
     }
 
-    "fetch data for pricing and shipment if track is unreachable" in {
+    "fetch data for pricing and shipment if track is unreachable" in new TestOrchestrator {
       given(shipment).succeeds
       given(track).fails
       given(pricing).succeeds
 
-      whenReady(orchestrator.execute(Seq(shipment,track, pricing).toMap)) { response =>
+      whenReady(execute(Seq(shipment,track, pricing).toMap)) { response =>
         response.contains("shipments") shouldBe true
         response.get("track") shouldBe Some(Map())
         response.contains("pricing") shouldBe true

@@ -8,7 +8,7 @@ class QueueActorSpec extends ActorSpec("QueueActorSpec") {
 
   "actor" should {
     "add params to the queue" in {
-      val queue = system.actorOf(QueueActor())
+      val queue = system.actorOf(QueueActor(2))
 
       queue ! Append(Seq("one"))
 

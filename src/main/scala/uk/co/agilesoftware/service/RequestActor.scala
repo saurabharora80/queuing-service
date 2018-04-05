@@ -16,8 +16,8 @@ object RequestActor {
   case object ForceApiCall
 
   case object MaxWait
-  def apply(queueActor: ActorRef, connector: DownstreamConnector, maxWait: FiniteDuration = 5.seconds)(implicit ec: ExecutionContext)
-    = Props(new RequestActor(queueActor, connector, maxWait))
+  def apply(queue: ActorRef, connector: DownstreamConnector, maxWait: FiniteDuration = 5.seconds)(implicit ec: ExecutionContext)
+    = Props(new RequestActor(queue, connector, maxWait))
 }
 
 class RequestActor(queue: ActorRef, connector: DownstreamConnector, maxWait: FiniteDuration = 5.seconds)(implicit ec: ExecutionContext) extends Actor
